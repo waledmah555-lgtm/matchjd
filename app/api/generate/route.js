@@ -1,14 +1,61 @@
 import OpenAI from "openai";
+import mammoth from "mammoth";
+import pdfParse from "pdf-parse";
 
 export const runtime = "nodejs";
 
+async function fileToText(file) {
+  const buf = Buffer.from(await file.arrayBuffer());
+  const name = (file.name || "").toLowerCase();
+
+  // DOCX
+  if (name.endsWith(".docx")) {
+    const { value } = await mammoth.extractRawText({ buffer: buf });
+    return (value || "").trim();
+  }
+
+  // PDF
+  if (name.endsWith(".pdf")) {
+    const data = await pdfParse(buf);
+    return (data.text || "").trim();
+  }
+
+  throw new Error("Unsupported file type. Please upload PDF or DOCX.");
+}
+
 export async function POST(req) {
   try {
-    const { resumeText, jobDescription } = await req.json();
+    const contentType = req.headers.get("content-type") || "";
 
-    if (!resumeText?.trim() || !jobDescription?.trim()) {
+    let resumeText = "";
+    let jobDescription = "";
+
+    // Accept multipart/form-data (for file upload)
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+      const file = form.get("resumeFile");
+      resumeText = (form.get("resumeText") || "").toString();
+      jobDescription = (form.get("jobDescription") || "").toString();
+
+      if (file && typeof file === "object" && file.size > 0) {
+        if (file.size > 2 * 1024 * 1024) {
+          return Response.json(
+            { error: "File too large. Please upload a file under 2MB." },
+            { status: 400 }
+          );
+        }
+        resumeText = await fileToText(file);
+      }
+    } else {
+      // Backward compatible JSON mode
+      const body = await req.json();
+      resumeText = body.resumeText || "";
+      jobDescription = body.jobDescription || "";
+    }
+
+    if (!resumeText.trim() || !jobDescription.trim()) {
       return Response.json(
-        { error: "Missing resumeText or jobDescription" },
+        { error: "Missing resume and/or job description." },
         { status: 400 }
       );
     }
@@ -28,14 +75,6 @@ STRICT RULES (NON-NEGOTIABLE):
 - Do NOT give advice, commentary, explanations, or suggestions.
 - Do NOT mention the job description explicitly in the final resume.
 - Output must be professional, neutral, and ATS-friendly.
-
-WHAT YOU MAY DO:
-- Reorder sections to emphasize relevance.
-- Rephrase existing bullet points for clarity and alignment, without changing meaning.
-- Group related skills more clearly.
-- Remove redundant or irrelevant content if necessary.
-- Improve grammar and formatting.
-- Emphasize projects, internships, coursework, and tools for fresher/entry-level candidates.
 
 TARGET AUDIENCE:
 - Fresher / entry-level candidates (0–2 years experience)
@@ -77,12 +116,8 @@ OUTPUT:
     });
 
     const result = response?.choices?.[0]?.message?.content || "";
-
     return Response.json({ result });
   } catch (e) {
-    return Response.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return Response.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
