@@ -8,6 +8,7 @@ export default function Home() {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+ const [resumeFile, setResumeFile] = useState(null);
 
   async function generate() {
     setErr("");
