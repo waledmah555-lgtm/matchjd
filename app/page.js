@@ -33,11 +33,20 @@ export default function Home() {
 
     setLoading(true);
     try {
-      const r = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText, jobDescription })
-      });
+     const form = new FormData();
+
+if (resumeFile) {
+  form.append("resumeFile", resumeFile);
+}
+
+form.append("resumeText", resumeText);
+form.append("jobDescription", jobDescription);
+
+const r = await fetch("/api/generate", {
+  method: "POST",
+  body: form
+});
+
 
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Something went wrong");
