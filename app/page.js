@@ -16,6 +16,18 @@ export default function Home() {
 
     if (!resumeText.trim() || !jobDescription.trim()) {
       setErr("Please paste both Resume text and Job Description.");
+      <label style={{ fontWeight: 700 }}>Upload Resume (PDF/DOCX) — optional</label>
+<input
+  type="file"
+  accept=".pdf,.docx"
+  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+  style={{ padding: 10, border: "1px solid #ccc", borderRadius: 10 }}
+/>
+
+<div style={{ fontSize: 12, opacity: 0.85 }}>
+  Tip: If upload fails, paste resume text instead (PDF formatting can be messy).
+</div>
+
       return;
     }
 
